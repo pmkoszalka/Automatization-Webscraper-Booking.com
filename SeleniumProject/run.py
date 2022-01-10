@@ -29,8 +29,3 @@ if __name__ == '__main__':
         #print(bot.data_cleaning(stats))
         print(bot.show_basic_stats(stats))
 
-    # except Exception as e:
-        # if 'in PATH' in str(e):
-        #     print('There is a problem!')
-        # else:
-        #     raise
