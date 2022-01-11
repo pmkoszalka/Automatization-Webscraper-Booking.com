@@ -1,18 +1,20 @@
-# this file will describe the methods
+"""This file contains main class and functions to perform basic automation and scraping of booking.com"""
+
+# imports
 import numpy
 from selenium import webdriver
-import os
 import datetime
-from Selenium.booking_folder.booking_filtration import BookingFiltration
-from Selenium.booking_folder import constants as const
+from Selenium.SeleniumProject.booking_folder.booking_filtration import BookingFiltration
+from Selenium.SeleniumProject.booking_folder import constants as const
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 import pandas as pd
 import time
 import re
+import os
 
-# Setting pandas properties
+# setting pandas properties
 desired_width = 320
 pd.set_option('display.width', desired_width)
 pd.set_option('display.max_columns', 10)
@@ -21,34 +23,44 @@ pd.set_option('display.float_format', lambda x: '%.2f' % x)
 
 
 class Booking(webdriver.Chrome):
-    def __init__(self, driver_path=r'C:\Users\pmkos\PycharmProjects\pythonProject\Selenium\booking_folder', teardown=True):
-        self.driver_path = driver_path
-        self.teardown = teardown
-        os.environ['PATH'] += os.pathsep + driver_path
-        options = webdriver.ChromeOptions()
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        super(Booking, self).__init__(options=options)
-        self.implicitly_wait(15)
-        self.maximize_window()
-        self.__visitors_numbers = 0
-        self.__nights_spent = 0
+    """Allows to perform basic automation and data scraping of booking.com"""
+
+    def __init__(self, driver_path=const.CWD, teardown=True):
+        self.driver_path = driver_path  # sets the path to our webdriver
+        self.teardown = teardown  # allows to quit browser after we are done
+        os.environ['PATH'] += os.pathsep + driver_path  # adds path to environmental variables
+        options = webdriver.ChromeOptions()  # creates instance of ChromeOptions
+        options.add_experimental_option('excludeSwitches', ['enable-logging'])  # disables the info-bar
+        super(Booking, self).__init__(options=options) # allows us to avoid using the base class name explicitly
+        self.implicitly_wait(15)  # polls the DOM for 15 sec while trying to find an element
+        self.maximize_window() # maximizes the Chrome window
+        self.__visitors_numbers = 0  # stores visitors number, helps to create ratio column
+        self.__nights_spent = 0  # stores nights spent number, helps to create ratio column
 
     def land_first_page(self):
-        self.get(const.BASE_URL)  # this will probably won't change
-        self.implicitly_wait(5)
+        """Opens booking.com"""
+
+        self.get(const.BASE_URL)
+
+
+    def close_pop_up(self):
+        """Closes the pop up"""
 
         pop_up_close = self.find_element_by_id("onetrust-accept-btn-handler")
         pop_up_close.click()
-        self.implicitly_wait(5)
+
+    def change_language_to_english(self):
+        """Changes the language for the site to English"""
 
         language_panel = self.find_element_by_class_name('bui-avatar__image')
         language_panel.click()
-        self.implicitly_wait(5)
 
         language_to_english = self.find_element_by_xpath("//*[contains(text(), 'English (UK)')]")
         language_to_english.click()
 
     def change_currency(self, currency=None):
+        """Changes the currency"""
+
         currency_element = self.find_element_by_css_selector('button[data-tooltip-text="Choose your currency"]')
         currency_element.click()
         selected_currency_element = self.find_element_by_css_selector(
@@ -56,14 +68,17 @@ class Booking(webdriver.Chrome):
         )
         selected_currency_element.click()
 
-    def input_travel_location(self, location):
+    def input_travel_location(self, destination):
+        """Selects travel destination"""
+
         search_bar = self.find_element_by_id('ss')
         search_bar.clear()
-        search_bar.send_keys(location)
+        search_bar.send_keys(destination)
         first_result = self.find_element_by_css_selector('li[data-i="0"]')
         first_result.click()
 
     def select_date(self, check_in_date, check_out_date):
+        """Selects check in and check out dates"""
 
         # definitions for check in
         check_in_date_obj = datetime.datetime.strptime(check_in_date, '%Y-%m-%d')
@@ -122,6 +137,8 @@ class Booking(webdriver.Chrome):
             raise Exception('Input future date!')
 
     def select_adults_number(self, adults_number=2):
+        """Selects certain number of adults in a Booking search"""
+
         select_bar = self.find_element_by_id("xp__guests__toggle")
         select_bar.click()
         self.__visitors_numbers = adults_number
@@ -142,17 +159,22 @@ class Booking(webdriver.Chrome):
                 adults_button_increase.click()
 
     def search(self):
+        """Finds and clicks the search button"""
+
         search_button = self.find_element_by_css_selector('button[class="sb-searchbox__button "]')
         search_button.click()
 
     def apply_filtration(self):
+        """Applies filtration to the Booking site"""
+
         filtration = BookingFiltration(driver=self)
         filtration.apply_star_rating(4, 5)
         # filtration.sort_price_lowest_first()
 
     def report_hotel_names(self, data_entries_number=25):
+        """Reports selected number of hotel deals"""
 
-        # Creating variables
+        # creating variables
         table_hotel_info = pd.DataFrame(columns=['Hotel Name', 'Price', 'Location', 'Rating'])
         page_number = 1
         wait = WebDriverWait(self, 500)
@@ -162,6 +184,7 @@ class Booking(webdriver.Chrome):
             self.get(self.current_url)
             time.sleep(5)
 
+            # waits for the elements to load on the domain
             element_card = wait.until(
                 EC.presence_of_element_located((By.XPATH, '//div[@data-testid="property-card"]')))
             element_title = wait.until(
@@ -173,6 +196,7 @@ class Booking(webdriver.Chrome):
             element_rating = wait.until(
                 EC.presence_of_element_located((By.XPATH, '//div[@data-testid="review-score"]')))
 
+            # placeholders
             hotel_names = []
             hotel_prices = []
             hotel_ratings = []
@@ -182,7 +206,7 @@ class Booking(webdriver.Chrome):
 
             for deal in deals:
 
-                # Get hotel names
+                # get hotel names
                 try:
                     hotel_name = deal.find_element_by_css_selector(
                         'div[data-testid="title"]'
@@ -194,7 +218,7 @@ class Booking(webdriver.Chrome):
                     # print('No name')
                     continue
 
-                # Get hotel price
+                # get hotel price
                 try:
                     hotel_price = deal.find_element_by_css_selector(
                         'div[data-testid="price-and-discounted-price"]').find_elements_by_tag_name("span")[
@@ -209,7 +233,7 @@ class Booking(webdriver.Chrome):
                     hotel_prices.append('No price')
                     continue
 
-                # Get hotel location
+                # get hotel location
                 try:
                     location = deal.find_element_by_css_selector('span[data-testid="distance"]').get_attribute(
                         'innerHTML'
@@ -220,7 +244,7 @@ class Booking(webdriver.Chrome):
                     locations.append('No location')
                     continue
 
-                # Get hotel rating
+                # get hotel rating
                 try:
                     hotel_rating = deal.find_element_by_css_selector(
                         'div[data-testid="review-score"]'
@@ -232,12 +256,12 @@ class Booking(webdriver.Chrome):
                     hotel_ratings.append("No rating")
                     continue
 
-            # Creating and merging dataframes
+            # creating and merging dataframes
             hotels_info = [(a, b, c, d) for a, b, c, d in zip(hotel_names, hotel_prices, locations, hotel_ratings)]
             hotels_info_df = pd.DataFrame(hotels_info, columns=['Hotel Name', 'Price', 'Location', 'Rating'])
             table_hotel_info = table_hotel_info.append(hotels_info_df, ignore_index=True)
 
-            # Checking if the next page needs to be clicked
+            # checking if the next page needs to be clicked
             if data_entries_number > len(table_hotel_info):
                 try:
                     page_number = page_number + 1
@@ -250,7 +274,9 @@ class Booking(webdriver.Chrome):
         return table_hotel_info.iloc[:data_entries_number, :]
 
     @staticmethod
-    def __data_cleaning_func(text : str):
+    def __data_cleaning_func(text: str):
+        """Extracts number from a string"""
+
         try:
             text = text.replace(' ', '').replace(',', '')
             text = float(re.findall('[0-9.]+', str(text))[0])
@@ -258,25 +284,31 @@ class Booking(webdriver.Chrome):
             text = numpy.nan
         return text
 
-    #@staticmethod
-    def __data_cleaning(self, data : pd.DataFrame):
+    @staticmethod
+    def data_cleaning(data: pd.DataFrame):
+        """Cleans the data of "Price", "Location" and "Rating" columns"""
+
         data['Price'] = data['Price'].apply(Booking.__data_cleaning_func)
         data['Location'] = data['Location'].apply(Booking.__data_cleaning_func)
         data['Rating'] = data['Rating'].apply(Booking.__data_cleaning_func)
-        data['Price_per_nights_per_visitors'] = data['Price'] / (self.__visitors_numbers * self.__nights_spent)
         return data
 
-    # def __price_per_nights_per_visitors(self, data: pd.DataFrame):
-    #     Booking.__data_cleaning(data)
-    #     data['Price_per_nights_per_visitors'] = data['Price'] / (self.__visitors_numbers * self.__nights_spent)
-    #     return data
-
     @staticmethod
-    def show_basic_stats(data : pd.DataFrame):
-        # Booking.__price_per_nights_per_visitors(data)
-        return Booking.__data_cleaning(data)
+    def show_basic_stats(data_cleaned: pd.DataFrame):
+        """Creates basic statistics for data"""
+        return data_cleaned.describe()
+
+    def add_ratio_column(self, data_cleaned):
+        """Adds "Price_per_nights_per_visitors" column to the dataframe"""
+
+        data_cleaned['Price_per_nights_per_visitors'] = data_cleaned['Price'] / (
+                    self.__visitors_numbers * self.__nights_spent)
+        return data_cleaned
+
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Quits the browser if teardown is set to True"""
+
         if self.teardown:
             self.implicitly_wait(5)
-            self.quit()  # this methods shuts down chromes browser
+            self.quit()

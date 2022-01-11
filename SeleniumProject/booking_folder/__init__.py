@@ -1,1 +1,1 @@
-#Make Python treat the directories as containing packages
+"""Make Python treat the directories as if containing packages"""

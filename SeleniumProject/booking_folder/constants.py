@@ -1,5 +1,11 @@
-from datetime import date
+"""Stores constants"""
 
+# imports
+from datetime import date
+import os
+
+#constants
+CWD = os.path.dirname(os.path.realpath(__file__))
 BASE_URL = "https://www.booking.com"
 TODAY_DATE = date.today()
 TODAY_YEAR = TODAY_DATE.year
