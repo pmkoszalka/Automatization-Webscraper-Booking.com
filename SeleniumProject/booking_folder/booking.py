@@ -171,30 +171,30 @@ class Booking(webdriver.Chrome):
         filtration.apply_star_rating(4, 5)
         # filtration.sort_price_lowest_first()
 
+    def stops(self):
+        """"""
+        # waits for the elements to load on the domain
+        wait = WebDriverWait(self, 500)
+        element_card = wait.until(
+            EC.presence_of_element_located((By.XPATH, '//div[@data-testid="property-card"]')))
+        element_title = wait.until(
+            EC.presence_of_element_located((By.XPATH, '//div[@data-testid="title"]')))
+        element_price = wait.until(
+            EC.presence_of_element_located((By.XPATH, '//div[@data-testid="price-and-discounted-price"]')))
+        element_location = wait.until(
+            EC.presence_of_element_located((By.XPATH, '//span[@data-testid="distance"]')))
+        element_rating = wait.until(
+            EC.presence_of_element_located((By.XPATH, '//div[@data-testid="review-score"]')))
+
     def report_hotel_names(self, data_entries_number=25):
         """Reports selected number of hotel deals"""
 
         # creating variables
         table_hotel_info = pd.DataFrame(columns=['Hotel Name', 'Price', 'Location', 'Rating'])
         page_number = 1
-        wait = WebDriverWait(self, 500)
 
         # setting up the loop for getting data
         while data_entries_number > len(table_hotel_info):
-            self.get(self.current_url)
-            time.sleep(5)
-
-            # waits for the elements to load on the domain
-            element_card = wait.until(
-                EC.presence_of_element_located((By.XPATH, '//div[@data-testid="property-card"]')))
-            element_title = wait.until(
-                EC.presence_of_element_located((By.XPATH, '//div[@data-testid="title"]')))
-            element_price = wait.until(
-                EC.presence_of_element_located((By.XPATH, '//div[@data-testid="price-and-discounted-price"]')))
-            element_location = wait.until(
-                EC.presence_of_element_located((By.XPATH, '//span[@data-testid="distance"]')))
-            element_rating = wait.until(
-                EC.presence_of_element_located((By.XPATH, '//div[@data-testid="review-score"]')))
 
             # placeholders
             hotel_names = []
