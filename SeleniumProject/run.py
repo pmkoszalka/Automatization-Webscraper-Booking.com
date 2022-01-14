@@ -27,8 +27,8 @@ if __name__ == '__main__':
         bot.search()
         bot.apply_filtration()
         bot.stops()
-        stats = bot.report_hotel_names(10)
-        print(stats)
-        #print(bot.data_cleaning(stats))
-        print(bot.show_basic_stats(stats))
+        stats = bot.report_hotel_names()
+        # print(stats)
+        # #print(bot.data_cleaning(stats))
+        # print(bot.show_basic_stats(stats))
 

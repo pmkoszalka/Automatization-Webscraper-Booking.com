@@ -13,6 +13,7 @@ import pandas as pd
 import time
 import re
 import os
+from Selenium.SeleniumProject.booking_folder.reporting import Reporting
 
 # setting pandas properties
 desired_width = 320
@@ -25,7 +26,7 @@ pd.set_option('display.float_format', lambda x: '%.2f' % x)
 class Booking(webdriver.Chrome):
     """Allows to perform basic automation and data scraping of booking.com"""
 
-    def __init__(self, driver_path=const.CWD, teardown=True):
+    def __init__(self, driver_path=const.CWD, teardown=False):
         self.driver_path = driver_path  # sets the path to our webdriver
         self.teardown = teardown  # allows to quit browser after we are done
         os.environ['PATH'] += os.pathsep + driver_path  # adds path to environmental variables
@@ -172,8 +173,7 @@ class Booking(webdriver.Chrome):
         # filtration.sort_price_lowest_first()
 
     def stops(self):
-        """"""
-        # waits for the elements to load on the domain
+        """Waits for the elements to load in the domain"""
         wait = WebDriverWait(self, 500)
         element_card = wait.until(
             EC.presence_of_element_located((By.XPATH, '//div[@data-testid="property-card"]')))
@@ -186,92 +186,89 @@ class Booking(webdriver.Chrome):
         element_rating = wait.until(
             EC.presence_of_element_located((By.XPATH, '//div[@data-testid="review-score"]')))
 
-    def report_hotel_names(self, data_entries_number=25):
+    def report_hotel_names(self):
         """Reports selected number of hotel deals"""
 
         # creating variables
-        table_hotel_info = pd.DataFrame(columns=['Hotel Name', 'Price', 'Location', 'Rating'])
-        page_number = 1
+        # table_hotel_info = pd.DataFrame(columns=['Hotel Name', 'Price', 'Location', 'Rating'])
+        # page_number = 1
 
         # setting up the loop for getting data
-        while data_entries_number > len(table_hotel_info):
+        # while data_entries_number > len(table_hotel_info):
 
-            # placeholders
-            hotel_names = []
-            hotel_prices = []
-            hotel_ratings = []
-            locations = []
+            # # placeholders
+            # hotel_names = []
+            # hotel_prices = []
+            # hotel_ratings = []
+            # locations = []
 
-            deals = self.find_elements_by_css_selector('div[data-testid="property-card"]')
+        deals = self.find_elements_by_css_selector('div[data-testid="property-card"]')
 
-            for deal in deals:
+        for deal in deals:
 
-                # get hotel names
-                try:
-                    hotel_name = deal.find_element_by_css_selector(
-                        'div[data-testid="title"]'
-                    ).text
-                    hotel_names.append(hotel_name)
-                    # print(hotel_name)
-                except:
-                    hotel_names.append('No Name')
-                    # print('No name')
-                    continue
+            # get hotel names
+            try:
+                hotel_name = deal.find_element_by_css_selector(
+                    'div[data-testid="title"]'
+                ).text
+                print(hotel_name)
+            except:
+                hotel_name = 'No Name'
+                continue
 
-                # get hotel price
-                try:
-                    hotel_price = deal.find_element_by_css_selector(
-                        'div[data-testid="price-and-discounted-price"]').find_elements_by_tag_name("span")[
-                        -1].get_attribute(
-                        'innerHTML'
-                    ).strip()
-                    hotel_price = hotel_price.replace('&nbsp;', ' ')
-                    hotel_prices.append(hotel_price)
-                    # print(hotel_price)
-                except:
-                    # print('no price')
-                    hotel_prices.append('No price')
-                    continue
+            # get hotel price
+            try:
+                hotel_price = deal.find_element_by_css_selector(
+                    'div[data-testid="price-and-discounted-price"]').find_elements_by_tag_name("span")[
+                    -1].get_attribute(
+                    'innerHTML'
+                ).strip()
+                print(hotel_price)
+            except:
+                hotel_price = 'No price'
+                continue
 
-                # get hotel location
-                try:
-                    location = deal.find_element_by_css_selector('span[data-testid="distance"]').get_attribute(
-                        'innerHTML'
-                    ).strip()
-                    locations.append(location)
-                except:
-                    # print('No location')
-                    locations.append('No location')
-                    continue
+            # get hotel location
+            try:
+                location = deal.find_element_by_css_selector('span[data-testid="distance"]').get_attribute(
+                    'innerHTML'
+                ).strip()
+                print(location)
+            except:
+                location = 'No location'
+                continue
 
-                # get hotel rating
-                try:
-                    hotel_rating = deal.find_element_by_css_selector(
-                        'div[data-testid="review-score"]'
-                    ).find_element_by_tag_name("div").get_attribute('innerHTML').strip()
-                    hotel_ratings.append(hotel_rating)
-                    # print(hotel_rating)
-                except:
-                    # print('no rating')
-                    hotel_ratings.append("No rating")
-                    continue
+            # get hotel rating
+            try:
+                hotel_rating = deal.find_element_by_css_selector(
+                    'div[data-testid="review-score"]'
+                ).find_element_by_tag_name("div").get_attribute('innerHTML').strip()
+                print(hotel_rating)
+            except:
+                hotel_rating = "No rating"
+                continue
 
-            # creating and merging dataframes
-            hotels_info = [(a, b, c, d) for a, b, c, d in zip(hotel_names, hotel_prices, locations, hotel_ratings)]
-            hotels_info_df = pd.DataFrame(hotels_info, columns=['Hotel Name', 'Price', 'Location', 'Rating'])
-            table_hotel_info = table_hotel_info.append(hotels_info_df, ignore_index=True)
 
-            # checking if the next page needs to be clicked
-            if data_entries_number > len(table_hotel_info):
-                try:
-                    page_number = page_number + 1
-                    button_page = self.find_element_by_css_selector(f'button[aria-label=" {page_number}"]')
-                    button_page.click()
-                except:
-                    print(f'There are only {len(table_hotel_info)} properties listed!')
-                    break
+            # #hotel = Reporting(hotel_name, hotel_price,  hotel_rating, location)
+            #
+            # print(hotel)
+            # hotel.__str__()
+            # # creating and merging dataframes
+            # hotels_info = [(a, b, c, d) for a, b, c, d in zip(hotel_names, hotel_prices, locations, hotel_ratings)]
+            # hotels_info_df = pd.DataFrame(hotels_info, columns=['Hotel Name', 'Price', 'Location', 'Rating'])
+            # table_hotel_info = table_hotel_info.append(hotels_info_df, ignore_index=True)
+            #
+            # # checking if the next page needs to be clicked
+            # if data_entries_number > len(table_hotel_info):
+            #     try:
+            #         page_number = page_number + 1
+            #         button_page = self.find_element_by_css_selector(f'button[aria-label=" {page_number}"]')
+            #         button_page.click()
+            #     except:
+            #         print(f'There are only {len(table_hotel_info)} properties listed!')
+            #         break
 
-        return table_hotel_info.iloc[:data_entries_number, :]
+        # return table_hotel_info.iloc[:data_entries_number, :]
 
     @staticmethod
     def __data_cleaning_func(text: str):
