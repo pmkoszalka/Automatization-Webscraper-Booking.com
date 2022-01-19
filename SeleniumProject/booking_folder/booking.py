@@ -5,12 +5,12 @@ import numpy
 from selenium import webdriver
 import datetime
 from Selenium.SeleniumProject.booking_folder.booking_filtration import BookingFiltration
+from Selenium.SeleniumProject.booking_folder.collectingdata import CollectingData
 from Selenium.SeleniumProject.booking_folder import constants as const
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 import pandas as pd
-import time
 import re
 import os
 from Selenium.SeleniumProject.booking_folder.reporting import Reporting
@@ -32,17 +32,16 @@ class Booking(webdriver.Chrome):
         os.environ['PATH'] += os.pathsep + driver_path  # adds path to environmental variables
         options = webdriver.ChromeOptions()  # creates instance of ChromeOptions
         options.add_experimental_option('excludeSwitches', ['enable-logging'])  # disables the info-bar
-        super(Booking, self).__init__(options=options) # allows us to avoid using the base class name explicitly
+        super(Booking, self).__init__(options=options)  # allows us to avoid using the base class name explicitly
         self.implicitly_wait(15)  # polls the DOM for 15 sec while trying to find an element
-        self.maximize_window() # maximizes the Chrome window
-        self.__visitors_numbers = 0  # stores visitors number, helps to create ratio column
-        self.__nights_spent = 0  # stores nights spent number, helps to create ratio column
+        self.maximize_window()  # maximizes the Chrome window
+        self._visitors_numbers = 0  # stores visitors number, helps to create ratio column
+        self._nights_spent = 0  # stores nights spent number, helps to create ratio column
 
     def land_first_page(self):
         """Opens booking.com"""
 
         self.get(const.BASE_URL)
-
 
     def close_pop_up(self):
         """Closes the pop up"""
@@ -99,7 +98,7 @@ class Booking(webdriver.Chrome):
         check_out_check_in_difference = check_out_date_obj - check_in_date_obj
         check_out_check_in_difference = check_out_check_in_difference.days
 
-        self.__nights_spent = check_out_check_in_difference
+        self._nights_spent = check_out_check_in_difference
 
         assert check_out_check_in_difference < 46, 'Reservations for more than 45 nights are not possible!'
 
@@ -142,7 +141,7 @@ class Booking(webdriver.Chrome):
 
         select_bar = self.find_element_by_id("xp__guests__toggle")
         select_bar.click()
-        self.__visitors_numbers = adults_number
+        self._visitors_numbers = adults_number
 
         if adults_number < 2:
             adults_button_decrease = self.find_element_by_css_selector(
@@ -186,92 +185,29 @@ class Booking(webdriver.Chrome):
         element_rating = wait.until(
             EC.presence_of_element_located((By.XPATH, '//div[@data-testid="review-score"]')))
 
-    def report_hotel_names(self):
-        """Reports selected number of hotel deals"""
+    def report(self, num):
+        page_number = 1
+        length_dataframe = 0
+        reporting = Reporting
 
-        # creating variables
-        # table_hotel_info = pd.DataFrame(columns=['Hotel Name', 'Price', 'Location', 'Rating'])
-        # page_number = 1
-
-        # setting up the loop for getting data
-        # while data_entries_number > len(table_hotel_info):
-
-            # # placeholders
-            # hotel_names = []
-            # hotel_prices = []
-            # hotel_ratings = []
-            # locations = []
-
-        deals = self.find_elements_by_css_selector('div[data-testid="property-card"]')
-
-        for deal in deals:
-
-            # get hotel names
+        while num > length_dataframe:
             try:
-                hotel_name = deal.find_element_by_css_selector(
-                    'div[data-testid="title"]'
-                ).text
-                print(hotel_name)
-            except:
-                hotel_name = 'No Name'
-                continue
+                collection = CollectingData(driver=self)
+                collection.gather_data()
 
-            # get hotel price
-            try:
-                hotel_price = deal.find_element_by_css_selector(
-                    'div[data-testid="price-and-discounted-price"]').find_elements_by_tag_name("span")[
-                    -1].get_attribute(
-                    'innerHTML'
-                ).strip()
-                print(hotel_price)
-            except:
-                hotel_price = 'No price'
-                continue
+                length_dataframe = len(reporting.create_dataframe())
+                page_number = page_number + 1
 
-            # get hotel location
-            try:
-                location = deal.find_element_by_css_selector('span[data-testid="distance"]').get_attribute(
-                    'innerHTML'
-                ).strip()
-                print(location)
-            except:
-                location = 'No location'
-                continue
-
-            # get hotel rating
-            try:
-                hotel_rating = deal.find_element_by_css_selector(
-                    'div[data-testid="review-score"]'
-                ).find_element_by_tag_name("div").get_attribute('innerHTML').strip()
-                print(hotel_rating)
-            except:
-                hotel_rating = "No rating"
-                continue
-
-
-            # #hotel = Reporting(hotel_name, hotel_price,  hotel_rating, location)
-            #
-            # print(hotel)
-            # hotel.__str__()
-            # # creating and merging dataframes
-            # hotels_info = [(a, b, c, d) for a, b, c, d in zip(hotel_names, hotel_prices, locations, hotel_ratings)]
-            # hotels_info_df = pd.DataFrame(hotels_info, columns=['Hotel Name', 'Price', 'Location', 'Rating'])
-            # table_hotel_info = table_hotel_info.append(hotels_info_df, ignore_index=True)
-            #
-            # # checking if the next page needs to be clicked
-            # if data_entries_number > len(table_hotel_info):
-            #     try:
-            #         page_number = page_number + 1
-            #         button_page = self.find_element_by_css_selector(f'button[aria-label=" {page_number}"]')
-            #         button_page.click()
-            #     except:
-            #         print(f'There are only {len(table_hotel_info)} properties listed!')
-            #         break
-
-        # return table_hotel_info.iloc[:data_entries_number, :]
+                button_page = self.find_element_by_css_selector(f'button[aria-label=" {page_number}"]')
+                button_page.click()
+            except Exception as e:
+                print(e)
+                print(f'There are only {length_dataframe} properties listed!')
+                break
+        return reporting.create_dataframe()[:num]
 
     @staticmethod
-    def __data_cleaning_func(text: str):
+    def _data_cleaning_func(text: str):
         """Extracts number from a string"""
 
         try:
@@ -282,12 +218,25 @@ class Booking(webdriver.Chrome):
         return text
 
     @staticmethod
+    def _data_cleaning_location(text: str):
+        try:
+            if ' m ' in text:
+                text = text.replace(' ', '').replace(',', '')
+                text = float(re.findall('[0-9.]+', str(text))[0]) / 1000
+            else:
+                text = text.replace(' ', '').replace(',', '')
+                text = float(re.findall('[0-9.]+', str(text))[0])
+        except:
+            text = numpy.nan
+        return text
+
+    @staticmethod
     def data_cleaning(data: pd.DataFrame):
         """Cleans the data of "Price", "Location" and "Rating" columns"""
 
-        data['Price'] = data['Price'].apply(Booking.__data_cleaning_func)
-        data['Location'] = data['Location'].apply(Booking.__data_cleaning_func)
-        data['Rating'] = data['Rating'].apply(Booking.__data_cleaning_func)
+        data['Price'] = data['Price'].apply(Booking._data_cleaning_func)
+        data['Location'] = data['Location'].apply(Booking._data_cleaning_location)
+        data['Rating'] = data['Rating'].apply(Booking._data_cleaning_func)
         return data
 
     @staticmethod
@@ -299,9 +248,10 @@ class Booking(webdriver.Chrome):
         """Adds "Price_per_nights_per_visitors" column to the dataframe"""
 
         data_cleaned['Price_per_nights_per_visitors'] = data_cleaned['Price'] / (
-                    self.__visitors_numbers * self.__nights_spent)
-        return data_cleaned
-
+                self._visitors_numbers * self._nights_spent)
+        data_cleaned['Best_hotel_KPI'] = data_cleaned['Price_per_nights_per_visitors'] / \
+                                                                   data_cleaned['Rating']
+        return data_cleaned.sort_values(by='Best_hotel_KPI')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Quits the browser if teardown is set to True"""
