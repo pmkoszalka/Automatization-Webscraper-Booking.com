@@ -168,9 +168,9 @@ class Booking(webdriver.Chrome):
         """Applies filtration to the Booking site"""
 
         filtration = BookingFiltration(driver=self)
-        filtration.apply_star_rating(4, 5)
         # filtration.sort_price_lowest_first()
         filtration.sort_best_reviewed_lowest_price()
+        filtration.apply_star_rating(4, 5)
 
     def stops(self):
         """Waits for the elements to load in the domain"""
