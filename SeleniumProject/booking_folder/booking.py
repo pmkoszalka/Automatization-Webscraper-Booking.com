@@ -26,7 +26,7 @@ pd.set_option('display.float_format', lambda x: '%.2f' % x)
 class Booking(webdriver.Chrome):
     """Allows to perform basic automation and data scraping of booking.com"""
 
-    def __init__(self, driver_path=const.CWD, teardown=False):
+    def __init__(self, driver_path=const.CWD, teardown=True):
         self.driver_path = driver_path  # sets the path to our webdriver
         self.teardown = teardown  # allows to quit browser after we are done
         os.environ['PATH'] += os.pathsep + driver_path  # adds path to environmental variables
@@ -170,9 +170,11 @@ class Booking(webdriver.Chrome):
         filtration = BookingFiltration(driver=self)
         filtration.apply_star_rating(4, 5)
         # filtration.sort_price_lowest_first()
+        filtration.sort_best_reviewed_lowest_price()
 
     def stops(self):
         """Waits for the elements to load in the domain"""
+
         wait = WebDriverWait(self, 500)
         element_card = wait.until(
             EC.presence_of_element_located((By.XPATH, '//div[@data-testid="property-card"]')))
@@ -185,40 +187,40 @@ class Booking(webdriver.Chrome):
         element_rating = wait.until(
             EC.presence_of_element_located((By.XPATH, '//div[@data-testid="review-score"]')))
 
-    def report(self, num):
+    def report(self, entries_number):
+        """Reports the dataframe with the certain number of entries"""
+
+        # sets up the initial conditions for page changing and data gathering
         page_number = 1
         length_dataframe = 0
         reporting = Reporting
 
-        while num > length_dataframe:
+        while entries_number > length_dataframe:
             try:
+                # instantiates the data collection
                 collection = CollectingData(driver=self)
                 collection.gather_data()
 
+                # sets up conditions for page changing and breaking the loop
                 length_dataframe = len(reporting.create_dataframe())
                 page_number = page_number + 1
 
+                # changes the page
                 button_page = self.find_element_by_css_selector(f'button[aria-label=" {page_number}"]')
                 button_page.click()
+
             except Exception as e:
+                # prints out an error message and number of data entries available
                 print(e)
                 print(f'There are only {length_dataframe} properties listed!')
                 break
-        return reporting.create_dataframe()[:num]
+
+        return reporting.create_dataframe()[:entries_number]
 
     @staticmethod
     def _data_cleaning_func(text: str):
-        """Extracts number from a string"""
+        """Extracts numbers from text and converts meters into kilometers if necessary"""
 
-        try:
-            text = text.replace(' ', '').replace(',', '')
-            text = float(re.findall('[0-9.]+', str(text))[0])
-        except:
-            text = numpy.nan
-        return text
-
-    @staticmethod
-    def _data_cleaning_location(text: str):
         try:
             if ' m ' in text:
                 text = text.replace(' ', '').replace(',', '')
@@ -228,6 +230,7 @@ class Booking(webdriver.Chrome):
                 text = float(re.findall('[0-9.]+', str(text))[0])
         except:
             text = numpy.nan
+
         return text
 
     @staticmethod
@@ -235,27 +238,28 @@ class Booking(webdriver.Chrome):
         """Cleans the data of "Price", "Location" and "Rating" columns"""
 
         data['Price'] = data['Price'].apply(Booking._data_cleaning_func)
-        data['Location'] = data['Location'].apply(Booking._data_cleaning_location)
+        data['Location'] = data['Location'].apply(Booking._data_cleaning_func)
         data['Rating'] = data['Rating'].apply(Booking._data_cleaning_func)
+
         return data
 
-    @staticmethod
-    def show_basic_stats(data_cleaned: pd.DataFrame):
-        """Creates basic statistics for data"""
-        return data_cleaned.describe()
-
-    def add_ratio_column(self, data_cleaned):
+    def add_ratio_columns(self, data_cleaned):
         """Adds "Price_per_nights_per_visitors" column to the dataframe"""
 
         data_cleaned['Price_per_nights_per_visitors'] = data_cleaned['Price'] / (
                 self._visitors_numbers * self._nights_spent)
         data_cleaned['Best_hotel_KPI'] = data_cleaned['Price_per_nights_per_visitors'] / \
                                                                    data_cleaned['Rating']
-        return data_cleaned.sort_values(by='Best_hotel_KPI')
+        return data_cleaned
+
+    @staticmethod
+    def show_basic_stats(data_cleaned: pd.DataFrame):
+        """Creates basic statistics for data"""
+
+        return data_cleaned.describe()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Quits the browser if teardown is set to True"""
 
-        if self.teardown:
-            self.implicitly_wait(5)
+        if self.teardown:  # shuts the page down after the search if selected to be True
             self.quit()

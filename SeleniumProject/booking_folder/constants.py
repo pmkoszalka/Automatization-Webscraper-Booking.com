@@ -4,7 +4,7 @@
 from datetime import date
 import os
 
-#constants
+# constants
 CWD = os.path.dirname(os.path.realpath(__file__))
 BASE_URL = "https://www.booking.com"
 TODAY_DATE = date.today()
